@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>MAP672 Lesson 07 Starter Template</title>
+  <meta name="viewport" content="initial-scale=1.0">
+  <meta charset="utf-8">
+
+  <link href="http://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet" type="text/css">
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+      background: whitesmoke;
+      font-family: Montserrat, serif;
+    }
+    header, footer {
+      background: #3d8b3b;
+      color: white;
+      padding: 18px 0;
+      box-shadow: 0px 1px 3px #245574;
+    }
+    .container {
+      width: 960px;
+      margin: 18px auto;
+    }
+    h1 {
+      width: 960px;
+      margin: 0 auto;
+      font-size: 2em;
+    }
+    a {
+      color: white;
+    }
+    ul li {
+      margin: 0 0 8px 0;
+    }
+    #map {
+      width: 100%;
+      height: 600px;
+    }
+    .state {
+      fill: #252525;
+      stroke: whitesmoke;
+    }
+    .park {
+      fill: #4daf4a;
+      stroke: #3d8b3b;
+      stroke-width: 0.5;
+    }
+    .filter {
+      position: absolute;
+      right: 48px;
+      width: 260px;
+      font-size: 1.3em;
+    }
+    .hover {
+      stroke: #ffff33;
+      stroke-width: 2;
+    }
+    .tooltip {
+      position: absolute;
+      min-width: 60px;
+      min-height: 28px;
+      padding: 6px 12px 3px;
+      color: #252525;
+      background: whitesmoke;
+      border-radius: 2px;
+      pointer-events: none;
+      opacity: 0; //change to see tooltip
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>National Parks</h1>
+  </header>
+  <div class="container">
+    <div id="map"></div>
+  </div>
+  <footer>
+    <div class="container">
+      <ul>
+        <li>Map authored by Rebekah Watkins</li>
+        <li>Data sourced from: </li>
+          <ul>
+            <li><a href="https://irma.nps.gov/Portal/">National Park Service</a></li>
+            <li><a href="https://www.census.gov/geo/maps-data/data/tiger-cart-boundary.html">Cartographic Boundary Files</a></li>
+          </ul>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="https://d3js.org/d3.v5.js"></script>
+  <script src="https://unpkg.com/topojson@3"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <script>
+
+  // synchronous calls to data files
+  var statesJson = d3.json("data/us-states.json")
+      parksJson = d3.json("data/nps_boundary2.json")
+
+
+  // use promise to call all data files, then send data to callback
+  Promise.all([statesJson, parksJson]).then(drawMap, error)
+
+  // function fired if there is an error
+  function error(error) {
+    console.log(error)
+  }
+
+  // accepts the data as a parameter
+  function drawMap(data) {
+    console.log(data);
+
+    // data is array of our two datasets
+    var statesData = data[0],
+        parksData = data[1]
+
+    // define width and height of our SVG
+    var width = 960,
+        height = 600
+
+    // select the map element
+    var svg = d3.select("#map")
+      .append("svg")  // append a new SVG element
+      .attr("width", width) // give the SVS element a width attribute and value
+      .attr("height", height) // same for the height
+
+    // get the GeoJSON representation of the states
+    var stateGeojson = topojson.feature(statesData, {
+      type: "GeometryCollection",
+      geometries: statesData.objects.states.geometries
+    })
+
+    // get the GeoJSON representation of the parks
+    var parkGeojson = topojson.feature(parksData, {
+      type: "GeometryCollection",
+      geometries: parksData.objects.nps_boundary.geometries
+    })
+
+    var projection = d3.geoAlbersUsa()
+        .fitSize([width, height], stateGeojson)
+    var path = d3.geoPath()
+        .projection(projection)
+
+    // create and append a new SVG g element to the SVG
+    var states = svg.append("g")
+      .selectAll("path")  // select all the paths (that don't exist yet)
+      .data(stateGeojson.features) // use the GeoJSON data
+      .enter()  // enter the selection
+      .append("path")  // append new path elements for each data feature
+      .attr("d", path)  // give each path a d attribute value
+      .attr("class", "state")  // give each path a class of state
+
+    // create and append a new SVG g element to the SVG
+    var parks = svg.append("g")
+      .selectAll("path")  // select all the paths (that don't exist yet)
+      .data(parkGeojson.features) // use the GeoJSON data
+      .enter()  // enter the selection
+      .append("path")  // append new path elements for each data feature
+      .attr("d", path)  // give each path a d attribute value
+      .attr("class", "park")  // give each path a class of state
+      .on("mouseover", function(d) {  // when mousing over an element
+        d3.select(this).classed("hover", true).raise();  // select it, add a class name, and bring to front
+        tooltip.style("opacity", 1).html(d.properties.UNIT_NAME)  // make tooltip visible and update info
+      })
+      .on("mouseout", function() { // when mousing out of an element
+        d3.select(this).classed("hover", false) // remove the class
+        tooltip.style("opacity", 0)  // hide the element
+      })
+
+      // Create  div for the tooltip and hide with opacity
+      var tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+
+      // select the map element
+      d3.select("#map")
+      .on("mousemove", function (event) { // when mouse moves over it
+      // update the position of the tooltip
+      tooltip.style("left", (d3.event.pageX + 10) + "px")
+        .style("top", (d3.event.pageY - 30) + "px");
+      })
+  }
+
+  </script>
+</body>
+
+</html>
